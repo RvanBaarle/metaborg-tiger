@@ -1,0 +1,20 @@
+module Functions
+
+imports Base
+
+sorts FArg
+context-free syntax
+
+  Dec.ProcDec = <
+    function <ID>(<{FArg ", "}*>) =
+      <Exp>
+  >
+
+  Dec.FunDec = <
+    function <ID>(<{FArg ", "}*>) : <Type> =
+      <Exp>
+  >
+
+  FArg.FArg = <<ID> : <Type>>
+
+  Exp.Call = <<ID>(<{Exp ", "}*>)>

@@ -1,0 +1,9 @@
+module Base
+
+sorts Dec Exp LValue
+
+sorts Type
+
+sorts Var
+
+lexical sorts ID
