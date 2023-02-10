@@ -11,6 +11,6 @@ context-free syntax
 
   Var.Var = ID
 
-  LValue = Var
+  LValue.Var2LValue = Var
 
-  Exp = LValue
+  Exp.LValue2Exp = LValue

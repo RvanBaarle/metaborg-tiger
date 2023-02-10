@@ -1,0 +1,288 @@
+module main
+
+imports
+
+  signatures/start-sig
+  primitive
+  stdlib
+  types
+
+signature
+constructors
+  String : string -> Exp  // TODO: this shouldn't be needed
+
+rules
+  $unit :: @cval
+  $false :: @cval
+  $true :: @cval
+  $break :: @cval
+
+  evalProgram :: 'Module -> Pluggable
+  evalExp :: 'Exp -> Pluggable(@cval)
+  evalExps :: List('Exp) -> Pluggable(@cval)
+  evalArgs :: List('Exp) -> Pluggable(List(@cval))
+  evalDecl :: 'Dec -> Pluggable
+  evalDecls :: List('Dec) -> Pluggable
+  compileFrameEntry :: ('ID * 'TYPE) -> @cstructmember
+
+  evalProgram(m@Mod(exp)) = {
+    with $unit = int('0), $false = int('0), $true = int('1) do {
+      mainframe <- create-scope!(m, ['"main!var"])
+      initBuiltins(mainframe)
+      evalExp(exp)
+    }
+  }
+  
+  // Control flow
+  
+  evalExp(Seq(exps)) = {
+  	evalExps(exps)
+  }
+  
+  evalExp(If(econd, e1, e2)) = {
+  	cond <- evalExp(econd)
+  	if #int-neq(cond, $false) then {
+  	  r1 <- evalExp(e1)
+  	  cont@([r1])
+  	} else {
+  	  r2 <- evalExp(e2)
+  	  cont@([r2])
+  	}
+  } label cont/1:
+  
+  evalExp(IfThen(econd, e1)) = {
+  	cond <- evalExp(econd)
+  	if #int-neq(cond, $false) then {
+  	  evalExp(e1)
+  	  cont@([$unit])
+  	} else {
+  	  cont@([$unit])
+  	}
+  } label cont/1:
+  
+  evalExp(w@While(econd, e1)) = {
+    create-scope!(w, ['"main!var"])
+  	while <- fresh-var(while)
+  	with $break = cont do {
+  	  fix {
+  	    fun while([]) = {
+  	      cond <- evalExp(econd)
+  	      if #int-neq(cond, $false) then {
+  	        evalExp(e1)
+  	        while@([])
+  	      } else {
+  	        cont@([$unit])
+  	      }
+  	    }
+  	  }
+  	  while@([])
+  	}
+  } label cont/1:
+  
+  evalExp(f@For(Var(x), e1, e2, ebody)) = {
+    val_min <- evalExp(e1)
+    val_max <- evalExp(e2)
+    create-scope!(f, ['"main!var"])
+    write-var!(x, val_min)
+    for <- fresh-var(for)
+  	with $break = cont do {
+  	  fix {
+  	    fun for([]) = {
+  	      i <- read-var!(x)
+  	      if #int-gt(i, val_max) then
+  	        cont@([$unit])
+  	      else {
+  	        evalExp(ebody)
+  	        i_plus <- #int-add(i, int('1))
+  	        write-var!(x, i_plus)
+  	        for@([])
+  	      }
+  	    }
+  	  }
+  	}
+  	for@([])
+  } label cont/1:
+  
+  evalExp(Break()) = {
+    $break@([$unit])
+  } label unused/1:
+  
+  evalExp(l@Let(bindings, exps)) = {
+    create-scope!(l, ['"main!var"])
+    evalDecls(bindings)
+    create-scope!(exps, ['"main!var"])
+    evalExps(exps)
+  }
+
+  evalExp(Call(f_id, arg_exprs)) = {
+    f <- read-var!(f_id)
+    args <- evalArgs(arg_exprs)
+    f@(args ++ [cont])
+  } label cont/1:
+  
+  // Literals
+  
+  evalExp(Int(i)) = int(i)
+  evalExp(String(x)) = str(x)
+  
+  // Arithmetic
+  
+  evalExp(Uminus(e)) = {
+    v <- evalExp(e)
+    #int-neg(v)
+  }
+  
+  evalExp(Times(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    #int-mul(v1, v2)
+  }
+  
+  evalExp(Divide(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    #int-div(v1, v2)
+  }
+  
+  evalExp(Plus(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    #int-add(v1, v2)
+  }
+  
+  evalExp(Minus(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    #int-sub(v1, v2)
+  }
+  
+  // Comparison
+  
+  evalExp(Eq(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #int-eq(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  
+  evalExp(Neq(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #int-neq(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  
+  evalExp(Gt(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #int-gt(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  
+  evalExp(Lt(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #int-lt(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  
+  evalExp(Geq(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #int-geq(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  
+  evalExp(Leq(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #int-leq(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  
+  // Logic
+  
+  evalExp(And(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #int-neq(v1, $false) then {
+      if #int-neq(v2, $false) then {
+        cont@([$true])
+      } else {
+        cont@([$false])
+      }
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  
+  evalExp(Or(e1, e2)) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #int-leq(v1, v2) then {
+      cont@([$true])
+    } else {
+      if #int-neq(v2, $false) then {
+        cont@([$true])
+      } else {
+        cont@([$false])
+      }
+    }
+  } label cont/1:
+
+  // Variables
+
+  evalExp(LValue2Exp(Var2LValue(Var(x)))) = read-var!(x)
+  evalExp(Assign(Var2LValue(Var(x)), e)) = {
+    val <- evalExp(e)
+    write-var!(x, val)
+    $unit
+  }
+  
+  evalExps([h|t]) = {
+    evalExp(h)
+    evalExps(t)
+  }
+  evalExps([e]) = evalExp(e)
+  evalExps([]) = $unit
+  evalArgs([h|t]) = {
+    hv <- evalExp(h)
+    tv <- evalArgs(t)
+    [hv|tv]
+  }
+  evalArgs([]) = []
+
+  evalDecl(v@VarDec(x, t, e)) = {
+    create-scope!(v, ['"main!var"])
+    val <- evalExp(e)
+    write-var!(x, val)
+  }
+  evalDecl(v@VarDecNoType(x, e)) = {
+    create-scope!(v, ['"main!var"])
+    val <- evalExp(e)
+    write-var!(x, val)
+  }
+  // TODO: ProcDec, FunDec, TypeDec 
+  evalDecls([h|t]) = {
+    evalDecl(h)
+    evalDecls(t)
+  }
+  evalDecls([]) = hole

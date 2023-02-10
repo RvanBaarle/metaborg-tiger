@@ -1,0 +1,34 @@
+module types
+
+imports
+
+  main
+
+signature
+  sorts Scope TYPE  // TODO: make scope a builtin
+  constructors
+    UNIT   : TYPE
+    INT    : TYPE
+    STRING : TYPE
+    NIL    : TYPE
+    RECORD : Scope -> TYPE
+    ARRAY  : TYPE * Scope -> TYPE
+    FUN    : List(TYPE) * TYPE -> TYPE
+
+rules
+  
+  evalType :: 'TYPE -> @ctype
+  evalTypes :: List('TYPE) -> List(@ctype)
+
+  compileFrameEntry((x, t)) = x : evalType(t)
+
+  evalType(UNIT()) = int
+  evalType(INT()) = int
+  evalType(STRING()) = string
+  evalType(NIL()) = *  // TODO: what should it be?
+// TODO: evalType(RECORD(s))
+  evalType(ARRAY(t, _)) = array<evalType(t)>
+  evalType(FUN(ts, t)) = function<evalTypes(ts) ++ [function<[evalType(t)]>]>
+
+  evalTypes([h|t]) = [evalType(h)|evalTypes(t)]
+  evalTypes([]) = []

@@ -1,0 +1,89 @@
+module stdlib
+
+imports main
+
+// Builtin tiger functions
+
+rules
+
+  initBuiltins :: @cval -> Pluggable
+
+  initBuiltins(frame) = {
+    print <- var('"print")
+    chr <- var('"chr")
+    ord <- var('"ord")
+    size <- var('"size")
+    substring <- var('"substring")
+    concat <- var('"concat")
+    not <- var('"not")
+    exit <- var('"exit")
+    getchar <- var('"getchar")
+    flush <- var('"flush")
+    printi <- var('"printi")
+    timeGo <- var('"timeGo")
+    timeStop <- var('"timeStop")
+    
+    arg1 <- var('"arg1")
+    arg2 <- var('"arg2")
+    arg3 <- var('"arg3")
+    cont <- var('"cont")
+    fix {
+      fun print([arg1, cont]) = {
+        #print<string>(arg1)
+        cont@([$unit])
+      }
+      fun chr([arg1, cont]) =
+        cont@([str('"a")])  // TODO: STUB
+
+      fun ord([arg1, cont]) =
+        cont@([int('0)])  // TODO: STUB
+
+      fun size([arg1, cont]) = {
+        res <- #str-length(arg1)
+        cont@([res])
+      }
+      fun substring([arg1, arg2, arg3, cont]) = 
+        cont@([arg1])  // TODO: STUB
+
+      fun concat([arg1, arg2, cont]) = {
+        res <- #str-add(arg1, arg2)
+        cont@([res])
+      }
+      fun not([arg1, cont]) = {
+        if #int-eq(arg1, $false) then
+          cont@([$true])
+        else
+          cont@([$false])
+      }
+      fun exit([arg1, cont]) = #exit()
+      fun getchar([cont]) =
+        cont@([str('"x")])  // TODO: stdin
+
+      fun flush([cont]) = cont@([$unit])  // TODO: stdout flushing?
+      fun printi([arg1, cont]) = {
+        #print<int>(arg1)
+        cont@([$unit])
+      }
+      fun timeGo([cont]) = {
+        #print(str('"Time start"))
+        cont@([$unit])
+      }
+      fun timeStop([cont]) = {
+        #print(str('"Time stop"))
+        cont@([$unit])
+      }
+    }
+    #struct-write(frame, symbol('"print"), print)
+    #struct-write(frame, symbol('"chr"), chr)
+    #struct-write(frame, symbol('"ord"), ord)
+    #struct-write(frame, symbol('"size"), size)
+    #struct-write(frame, symbol('"substring"), substring)
+    #struct-write(frame, symbol('"concat"), concat)
+    #struct-write(frame, symbol('"not"), not)
+    #struct-write(frame, symbol('"exit"), exit)
+    #struct-write(frame, symbol('"getchar"), getchar)
+    #struct-write(frame, symbol('"flush"), flush)
+    #struct-write(frame, symbol('"printi"), printi)
+    #struct-write(frame, symbol('"timeGo"), timeGo)
+    #struct-write(frame, symbol('"timeStop"), timeStop)
+  }

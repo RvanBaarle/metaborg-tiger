@@ -6,7 +6,7 @@ lexical sorts StrConst StrChar
 
 lexical syntax
 
-  StrConst = "\"" StrChar* "\""
+  StrConst = StrChar*
   StrChar = ~[\\\"\r\n]
   StrChar = [\\] [a]
   StrChar = [\\] [b]
@@ -23,6 +23,6 @@ lexical syntax
 
   StrChar = [\\] [\ \t\r\n]+ [\\]
 
-context-free syntax
+syntax
 
-  Exp.String = StrConst
+  Exp-CF.String = "\"" StrConst-CF "\""

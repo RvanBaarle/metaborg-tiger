@@ -7,9 +7,10 @@ rules // single-file entry point
 
   programOk : Module
 
-  programOk(Mod(e)) :- {s T}
+  programOk(m@Mod(e)) :- {s T}
     new s, init(s),
-    typeOfExp(s, e) == T.
+    typeOfExp(s, e) == T,
+    @m.scope := s.
 
 rules // multi-file entry point
 
@@ -171,12 +172,14 @@ rules
 
 rules
 
-  typeOfExp(s_outer, Let(ds, es)) = T :- {s_body s_dec}
+  typeOfExp(s_outer, l@Let(ds, es)) = T :- {s_body s_dec}
     new s_body,
     new s_dec,
     s_dec -P-> s_outer,
     decsOk(s_body, s_dec, ds),
-    typeOfSeq(s_body, es) == T.
+    typeOfSeq(s_body, es) == T,
+    @l.scope := s_dec,
+    @es.scope := s_body.
 
 
   decsOk     : scope * scope * list(Dec)
@@ -187,13 +190,15 @@ rules
     new s_dec,
     s_dec -P-> s_outer,
     decOk(s_dec, s_outer, dec),
-    decsOk(s_body, s_dec, decs).
+    decsOk(s_body, s_dec, decs),
+    @dec.scope := s_dec.
 
   decsOk(s_body, s_outer, [dec@VarDecNoType(_, _) | decs]) :- {s_dec}
     new s_dec,
     s_dec -P-> s_outer,
     decOk(s_dec, s_outer, dec),
-    decsOk(s_body, s_dec, decs).
+    decsOk(s_body, s_dec, decs),
+    @dec.scope := s_dec.
 
   decsOk(s_body, s_outer, [dec | decs]) :- {s_dec}
     decOk(s_outer, s_outer, dec),
@@ -245,7 +250,8 @@ rules // function declarations
     new s_fun, s_fun -P-> s,
     typesOfArgs(s_fun, s_outer, args) == Ts,
     declareVar(s, f, FUN(Ts, UNIT())),
-    typeOfExp(s_fun, e) == UNIT().
+    typeOfExp(s_fun, e) == UNIT(),
+    @d.scope := s_fun.
 
   decOk(s, s_outer, d@FunDec(f, args, t, e)) :- {s_fun Ts T S}
     new s_fun, s_fun -P-> s,
@@ -253,7 +259,8 @@ rules // function declarations
     typeOfType(s_outer, t) == T,
     declareVar(s, f, FUN(Ts, T)),
     typeOfExp(s_fun, e) == S,
-    subtype(S, T) | error $[[S] is not a subtype of [T]] @t.
+    subtype(S, T) | error $[[S] is not a subtype of [T]] @t,
+    @d.scope := s_fun.
 
 rules
   typeOfArg  : scope * scope * FArg -> TYPE
@@ -346,20 +353,22 @@ rules // sequence
     typeOfExp(s, e1) == INT(),
     typeOfExp(s, e2) == UNIT().
 
-  typeOfExp(s, While(e1, e2)) = UNIT() :- {s_loop}
+  typeOfExp(s, w@While(e1, e2)) = UNIT() :- {s_loop}
     new s_loop, s_loop -P-> s,
     !loop[] in s_loop,
     typeOfExp(s_loop, e1) == INT(),
-    typeOfExp(s_loop, e2) == UNIT().
+    typeOfExp(s_loop, e2) == UNIT(),
+    @w.scope := s_loop.
 
-  typeOfExp(s, For(Var(x), e1, e2, e3)) = UNIT() :- {s_for}
+  typeOfExp(s, f@For(Var(x), e1, e2, e3)) = UNIT() :- {s_for}
     new s_for,
     s_for -P-> s,
     declareVar(s_for, x, INT()),
     !loop[] in s_for,
     typeOfExp(s, e1) == INT(),
     typeOfExp(s, e2) == INT(),
-    typeOfExp(s_for, e3) == UNIT().
+    typeOfExp(s_for, e3) == UNIT(),
+    @f.scope := s_for.
 
   typeOfExp(s, Break()) = UNIT() :-
     query loop
@@ -432,9 +441,10 @@ rules // operators
 
 rules // record type
 
-  typeOfType(s, RecordTy(fields)) = RECORD(s_rec) :-
+  typeOfType(s, r@RecordTy(fields)) = RECORD(s_rec) :-
     new s_rec,
-    fieldsOk(s_rec, s, fields).
+    fieldsOk(s_rec, s, fields),
+    @r.scope := s_rec.
 
   fieldOk : scope * scope * Field
   fieldsOk maps fieldOk(*, *, list(*))
