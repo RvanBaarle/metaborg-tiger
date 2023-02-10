@@ -172,14 +172,14 @@ rules
 
 rules
 
-  typeOfExp(s_outer, l@Let(ds, es)) = T :- {s_body s_dec}
+  typeOfExp(s_outer, l@Let(ds, b@LetBody(es))) = T :- {s_body s_dec}
     new s_body,
     new s_dec,
     s_dec -P-> s_outer,
     decsOk(s_body, s_dec, ds),
     typeOfSeq(s_body, es) == T,
     @l.scope := s_dec,
-    @es.scope := s_body.
+    @b.scope := s_body.
 
 
   decsOk     : scope * scope * list(Dec)

@@ -107,10 +107,10 @@ rules
     $break@([$unit])
   } label unused/1:
   
-  evalExp(l@Let(bindings, exps)) = {
+  evalExp(l@Let(bindings, b@LetBody(exps))) = {
     create-scope!(l, ['"main!var"])
     evalDecls(bindings)
-    create-scope!(exps, ['"main!var"])
+    create-scope!(b, ['"main!var"])
     evalExps(exps)
   }
 
@@ -280,7 +280,47 @@ rules
     val <- evalExp(e)
     write-var!(x, val)
   }
-  // TODO: ProcDec, FunDec, TypeDec 
+  
+  paramsToVars :: List('FArg) -> List(@cval)
+  paramsToVars([FArg(x, _)|t]) = [var(x)|paramsToVars(t)]
+  paramsToVars([]) = []
+  storeParams :: List('FArg) -> Pluggable
+  storeParams([FArg(x, _)|t]) = {
+    write-var!(x, var(x))
+    storeParams(t)
+  }
+  storeParams([]) = hole
+  
+  evalDecl(d@ProcDec(x, params, e)) = {
+    f <- var(x)
+    cont <- fresh-var(cont)
+    fix {
+      fun f(paramsToVars(params) ++ [cont]) = {
+        create-scope!(d, ['"main!var"])
+        storeParams(params)
+        evalExp(e)
+        cont@([$unit])
+      }
+    }
+    write-var!(x, f)
+  }
+
+  evalDecl(d@FunDec(x, params, _, e)) = {
+    f <- var(x)
+    cont <- fresh-var(cont)
+    fix {
+      fun f(paramsToVars(params) ++ [cont]) = {
+        create-scope!(d, ['"main!var"])
+        storeParams(params)
+        result <- evalExp(e)
+        cont@([result])
+      }
+    }
+    write-var!(x, f)
+  }
+
+  // TODO: TypeDec
+
   evalDecls([h|t]) = {
     evalDecl(h)
     evalDecls(t)

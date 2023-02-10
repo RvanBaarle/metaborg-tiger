@@ -2,7 +2,7 @@ module Bindings
 
 imports Base
 
-sorts Declarations
+sorts Declarations LetBody
 
 context-free syntax
 
@@ -10,9 +10,12 @@ context-free syntax
     let
       <{Dec "\n"}*>
      in
-      <{Exp ";\n"}*>
+      <LetBody>
     end
   >
+
+  // LetBody is a workaround for a statix bug, see https://github.com/metaborg/nabl/issues/111
+  LetBody.LetBody = <<{Exp ";\n"}*>>
 
   Declarations.Declarations = <
     declarations <{Dec "\n"}*>
