@@ -465,7 +465,8 @@ rules // record creation
     initsOk(s, s_rec, s_init, inits),
     lookupAllFields(s_rec) == ds,
     fieldsSameLength(ds, inits),
-    allFieldsInitialized(t, ds, s_init).
+    allFieldsInitialized(t, ds, s_init),
+    @e.scope := s_rec.
 
 
   fieldsSameLength : list((path * (ID * TYPE))) * list(InitField)
@@ -493,9 +494,10 @@ rules // record creation
 
 rules // record field access
 
-  typeOfLVal(s, FieldVar(lval, x)) = T :- {s_rec}
+  typeOfLVal(s, f@FieldVar(lval, x)) = T :- {s_rec}
     typeOfLVal(s, lval) == RECORD(s_rec),
-    typeOfField(s_rec, x) == T.
+    typeOfField(s_rec, x) == T,
+    @f.scope := s_rec.
 
 rules // literals
 

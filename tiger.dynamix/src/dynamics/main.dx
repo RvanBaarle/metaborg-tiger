@@ -285,6 +285,36 @@ rules
     $unit
   }
 
+  // Records
+
+  evalExp(r@Record(x, fields)) = {
+    frame <- create-scope!(r, ['"main!field"])
+    evalFields(fields)
+    frame
+  }
+
+  evalFields :: List('InitField) -> Pluggable
+  evalFields([]) = hole
+  evalFields([InitField(x, e)|t]) = {
+    v <- evalExp(e)
+    write-var!(x, v)
+    evalFields(t)
+  }
+
+  evalExp(LValue2Exp(f@FieldVar(lval, x))) = {
+    frame <- evalExp('LValue2Exp(lval))
+    use-scope!(f, frame)
+    read-var!(x)
+  }
+
+  evalExp(Assign(f@FieldVar(lval, x), e)) = {
+    frame <- evalExp('LValue2Exp(lval))
+    val <- evalExp(e)
+    use-scope!(f, frame)
+    write-var!(x, val)
+    $unit
+  }
+
   // Variables
 
   evalExp(LValue2Exp(Var2LValue(Var(x)))) = read-var!(x)
