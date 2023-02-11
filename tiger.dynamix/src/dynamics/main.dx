@@ -83,24 +83,23 @@ rules
     val_min <- evalExp(e1)
     val_max <- evalExp(e2)
     create-scope!(f, ['"main!var"])
-    write-var!(x, val_min)
     for <- fresh-var(for)
+    i <- fresh-var(i)
   	with $break = cont do {
   	  fix {
-  	    fun for([]) = {
-  	      i <- read-var!(x)
+  	    fun for([i]) = {
+          write-var!(x, i)
   	      if #int-gt(i, val_max) then
   	        cont@([$unit])
   	      else {
   	        evalExp(ebody)
   	        i_plus <- #int-add(i, int('1))
-  	        write-var!(x, i_plus)
-  	        for@([])
+  	        for@([i_plus])
   	      }
   	    }
   	  }
   	}
-  	for@([])
+  	for@([val_min])
   } label cont/1:
   
   evalExp(Break()) = {
@@ -124,6 +123,7 @@ rules
   
   evalExp(Int(i)) = int(i)
   evalExp(String(x)) = str(x)
+  evalExp(NilExp()) = null
   
   // Arithmetic
   
@@ -157,7 +157,7 @@ rules
   }
   
   // Comparison
-  
+  // TODO: Comparison of other types
   evalExp(Eq(e1, e2)) = {
     v1 <- evalExp(e1)
     v2 <- evalExp(e2)
@@ -248,6 +248,43 @@ rules
     }
   } label cont/1:
 
+  // Arrays
+  
+  evalExp(Array(_, e1, e2)) = {
+    count <- evalExp(e1)
+    initVal <- evalExp(e2)
+    loop <- fresh-var(loop)
+    i <- fresh-var(i)
+    arr <- fresh-var(i)
+    empty <- #array-new([])
+    fix {
+      fun loop([i, arr]) = {
+        if #int-lt(i, count) then {
+          new_part <- #array-new([initVal])
+          i_plus <- #int-add(i, int('1))
+          new_arr <- #array-concat(arr, new_part)
+          loop@([i_plus, new_arr])
+        } else
+          cont@([arr])
+      }
+    }
+    loop@([int('0), empty])
+  } label cont/1:
+
+  evalExp(LValue2Exp(Subscript(lval, e))) = {
+    arr <- evalExp('LValue2Exp(lval))
+    index <- evalExp(e)
+    #array-read(arr, index)
+  }
+
+  evalExp(Assign(Subscript(lval, e1), e2)) = {
+    arr <- evalExp('LValue2Exp(lval))
+    index <- evalExp(e1)
+    val <- evalExp(e2)
+    #array-write(arr, index, val)
+    $unit
+  }
+
   // Variables
 
   evalExp(LValue2Exp(Var2LValue(Var(x)))) = read-var!(x)
@@ -319,7 +356,7 @@ rules
     write-var!(x, f)
   }
 
-  // TODO: TypeDec
+  evalDecl(TypeDec(_, _)) = hole  // NOOP, let statix handle this
 
   evalDecls([h|t]) = {
     evalDecl(h)

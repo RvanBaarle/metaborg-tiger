@@ -26,7 +26,7 @@ rules
   evalType(INT()) = int
   evalType(STRING()) = string
   evalType(NIL()) = *  // TODO: what should it be?
-// TODO: evalType(RECORD(s))
+  evalType(RECORD(s)) = scope-type!(s)
   evalType(ARRAY(t, _)) = array<evalType(t)>
   evalType(FUN(ts, t)) = function<evalTypes(ts) ++ [function<[evalType(t)]>]>
 
