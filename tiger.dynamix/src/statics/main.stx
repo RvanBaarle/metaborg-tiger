@@ -161,6 +161,10 @@ rules equitype : TYPE * TYPE
   lub(S, T) = S.
   lub(NIL(), T) = T.
 
+  orderedtype : TYPE
+  orderedtype(INT()).
+  orderedtype(STRING()).
+
 rules
 
   typeOfExp  : scope * Exp -> TYPE
@@ -179,7 +183,8 @@ rules
     decsOk(s_body, s_dec, ds),
     typeOfSeq(s_body, es) == T,
     @l.scope := s_dec,
-    @b.scope := s_body.
+    @b.scope := s_body,
+    @l.type := T.
 
 
   decsOk     : scope * scope * list(Dec)
@@ -272,10 +277,11 @@ rules
 
 rules // function calls
 
-  typeOfExp(s, Call(f, es)) = T :- {Ts Ss}
+  typeOfExp(s, e@Call(f, es)) = T :- {Ts Ss}
     typeOfVar(s, f) == FUN(Ts, T),
     typeOfExps(s, es) == Ss,
-    subtypes(Ss, Ts).
+    subtypes(Ss, Ts),
+    @e.type := T.
 
 rules // variable declarations
 
@@ -302,11 +308,12 @@ rules // arrays
 
 rules // array creation
 
-  typeOfExp(s, Array(x, e1, e2)) = ARRAY(T, s_arr) :- {S}
+  typeOfExp(s, e@Array(x, e1, e2)) = ARRAY(T, s_arr) :- {S}
     typeOfType(s, Tid(x)) == ARRAY(T, s_arr),
     typeOfExp(s, e1) == INT(),
     typeOfExp(s, e2) == S,
-    subtype(S, T).
+    subtype(S, T),
+    @e.type := ARRAY(T, s_arr).
 
 rules // array indexing
 
@@ -316,19 +323,24 @@ rules // array indexing
 
 rules // statements
 
-  typeOfExp(s, Assign(e1, e2)) = UNIT() :- {T S}
+  typeOfExp(s, e@Assign(e1, e2)) = UNIT() :- {T S}
     typeOfLVal(s, e1) == T,
     typeOfExp(s, e2) == S,
-    subtype(S, T).
+    subtype(S, T),
+    @e.type := UNIT().
 
 rules
 
   typeOfLVal(s, Var2LValue(Var(x))) = T :-
     typeOfVar(s, x) == T.
 
-  typeOfExp(s, LValue2Exp(lval)) = typeOfLVal(s, lval).
+  typeOfExp(s, e@LValue2Exp(lval)) = T :-
+    T == typeOfLVal(s, lval),
+    @e.type := T.
 
-  typeOfExp(s, LValue2Exp(Var2LValue(Var(x)))) = typeOfVar(s, x).
+  typeOfExp(s, e@LValue2Exp(Var2LValue(Var(x)))) = T :-
+    T == typeOfVar(s, x),
+    @e.type := T.
 
 rules // sequence
 
@@ -341,24 +353,29 @@ rules // sequence
     typeOfExp(s, e) == S,
     typeOfSeq(s, es) == T.
 
-  typeOfExp(s, Seq(es)) = typeOfSeq(s, es).
+  typeOfExp(s, e@Seq(es)) = T :-
+    T == typeOfSeq(s, es),
+    @e.type := T.
 
-  typeOfExp(s, If(e1, e2, e3)) = lub(T, S) :-
+  typeOfExp(s, e@If(e1, e2, e3)) = lub(T, S) :-
     typeOfExp(s, e1) == INT(),
     typeOfExp(s, e2) == T,
     typeOfExp(s, e3) == S,
-    equitype(S, T).
+    equitype(S, T),
+    @e.type := lub(T, S).
 
-  typeOfExp(s, IfThen(e1, e2)) = UNIT() :-
+  typeOfExp(s, e@IfThen(e1, e2)) = UNIT() :-
     typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == UNIT().
+    typeOfExp(s, e2) == UNIT(),
+    @e.type := UNIT().
 
   typeOfExp(s, w@While(e1, e2)) = UNIT() :- {s_loop}
     new s_loop, s_loop -P-> s,
     !loop[] in s_loop,
     typeOfExp(s_loop, e1) == INT(),
     typeOfExp(s_loop, e2) == UNIT(),
-    @w.scope := s_loop.
+    @w.scope := s_loop,
+    @w.type := UNIT().
 
   typeOfExp(s, f@For(Var(x), e1, e2, e3)) = UNIT() :- {s_for}
     new s_for,
@@ -368,76 +385,95 @@ rules // sequence
     typeOfExp(s, e1) == INT(),
     typeOfExp(s, e2) == INT(),
     typeOfExp(s_for, e3) == UNIT(),
-    @f.scope := s_for.
+    @f.scope := s_for,
+    @f.type := UNIT().
 
-  typeOfExp(s, Break()) = UNIT() :-
+  typeOfExp(s, b@Break()) = UNIT() :-
     query loop
       filter P*
       min $ < P
-       in s |-> [_].
+       in s |-> [_],
+    @b.type := UNIT().
 
 rules // literals
 
-  typeOfExp(s, Int(i)) = INT() :-
-    @i.lit := i.
+  typeOfExp(s, e@Int(i)) = INT() :-
+    @i.lit := i,
+    @e.type := INT().
 
 rules // operators
 
-  typeOfExp(s, Uminus(e)) = INT() :-
-    typeOfExp(s, e) == INT().
+  typeOfExp(s, u@Uminus(e)) = INT() :-
+    typeOfExp(s, e) == INT(),
+    @u.type := INT().
 
-  typeOfExp(s, Divide(e1, e2)) = INT() :-
+  typeOfExp(s, e@Divide(e1, e2)) = INT() :-
     typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+    typeOfExp(s, e2) == INT(),
+    @e.type := INT().
 
-  typeOfExp(s, Times(e1, e2)) = INT() :-
+  typeOfExp(s, e@Times(e1, e2)) = INT() :-
     typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+    typeOfExp(s, e2) == INT(),
+    @e.type := INT().
 
-  typeOfExp(s, Minus(e1, e2)) = INT() :-
+  typeOfExp(s, e@Minus(e1, e2)) = INT() :-
     typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+    typeOfExp(s, e2) == INT(),
+    @e.type := INT().
 
-  typeOfExp(s, Plus(e1, e2)) = INT() :-
+  typeOfExp(s, e@Plus(e1, e2)) = INT() :-
     typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+    typeOfExp(s, e2) == INT(),
+    @e.type := INT().
 
-  typeOfExp(s, Eq(e1, e2)) = INT() :- {T S}
+  typeOfExp(s, e@Eq(e1, e2)) = INT() :- {T S}
     typeOfExp(s, e1) == T,
     typeOfExp(s, e2) == S,
-    equitype(T, S).
+    equitype(T, S),
+    @e.type := INT().
     // TODO: does Eq work for all types?
 
-  typeOfExp(s, Neq(e1, e2)) = INT() :- {T S}
+  typeOfExp(s, e@Neq(e1, e2)) = INT() :- {T S}
     typeOfExp(s, e1) == T,
     typeOfExp(s, e2) == S,
-    equitype(T, S).
+    equitype(T, S),
+    @e.type := INT().
     // TODO: does Neq work for all types?
 
-  typeOfExp(s, Gt(e1, e2)) = INT() :-
-    typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
-    // TODO: does Gt work for more types?
+  typeOfExp(s, e@Gt(e1, e2)) = INT() :- {T}
+    typeOfExp(s, e1) == T,
+    typeOfExp(s, e2) == T,
+    orderedtype(T),
+    @e.type := INT().
 
-  typeOfExp(s, Lt(e1, e2)) = INT() :-
-    typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+  typeOfExp(s, e@Lt(e1, e2)) = INT() :- {T}
+    typeOfExp(s, e1) == T,
+    typeOfExp(s, e2) == T,
+    orderedtype(T),
+    @e.type := INT().
 
-  typeOfExp(s, Geq(e1, e2)) = INT() :-
-    typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+  typeOfExp(s, e@Geq(e1, e2)) = INT() :- {T}
+    typeOfExp(s, e1) == T,
+    typeOfExp(s, e2) == T,
+    orderedtype(T),
+    @e.type := INT().
 
-  typeOfExp(s, Leq(e1, e2)) = INT() :-
-    typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+  typeOfExp(s, e@Leq(e1, e2)) = INT() :- {T}
+    typeOfExp(s, e1) == T,
+    typeOfExp(s, e2) == T,
+    orderedtype(T),
+    @e.type := INT().
 
-  typeOfExp(s, Or(e1, e2)) = INT() :-
+  typeOfExp(s, e@Or(e1, e2)) = INT() :-
     typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+    typeOfExp(s, e2) == INT(),
+    @e.type := INT().
 
-  typeOfExp(s, And(e1, e2)) = INT() :-
+  typeOfExp(s, e@And(e1, e2)) = INT() :-
     typeOfExp(s, e1) == INT(),
-    typeOfExp(s, e2) == INT().
+    typeOfExp(s, e2) == INT(),
+    @e.type := INT().
 
 rules // record type
 
@@ -455,7 +491,8 @@ rules // record type
 
 rules // literals
 
-  typeOfExp(s, NilExp()) = NIL().
+  typeOfExp(s, e@NilExp()) = NIL() :-
+    @e.type := NIL().
 
 rules // record creation
 
@@ -466,7 +503,8 @@ rules // record creation
     lookupAllFields(s_rec) == ds,
     fieldsSameLength(ds, inits),
     allFieldsInitialized(t, ds, s_init),
-    @e.scope := s_rec.
+    @e.scope := s_rec,
+    @e.type := RECORD(s_rec).
 
 
   fieldsSameLength : list((path * (ID * TYPE))) * list(InitField)
@@ -501,8 +539,9 @@ rules // record field access
 
 rules // literals
 
-  typeOfExp(s, String(v)) = STRING() :-
-    @v.lit := v.
+  typeOfExp(s, e@String(v)) = STRING() :-
+    @v.lit := v,
+    @e.type := STRING().
 
 rules
 

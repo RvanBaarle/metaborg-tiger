@@ -11,6 +11,9 @@ signature
 constructors
   String : string -> Exp  // TODO: this shouldn't be needed
 
+constraint-analyzer
+  property type :: 'TYPE
+
 rules
   $unit :: @cval
   $false :: @cval
@@ -19,6 +22,7 @@ rules
 
   evalProgram :: 'Module -> Pluggable
   evalExp :: 'Exp -> Pluggable(@cval)
+  evalTypedExp :: 'Exp * List('TYPE) -> Pluggable(@cval)
   evalExps :: List('Exp) -> Pluggable(@cval)
   evalArgs :: List('Exp) -> Pluggable(List(@cval))
   evalDecl :: 'Dec -> Pluggable
@@ -158,7 +162,8 @@ rules
   
   // Comparison
   // TODO: Comparison of other types
-  evalExp(Eq(e1, e2)) = {
+  evalExp(e@Eq(e1, e2)) = evalTypedExp(e, type(e1))
+  evalTypedExp(Eq(e1, e2), [INT()]) = {
     v1 <- evalExp(e1)
     v2 <- evalExp(e2)
     if #int-eq(v1, v2) then {
@@ -167,8 +172,27 @@ rules
       cont@([$false])
     }
   } label cont/1:
+  evalTypedExp(Eq(e1, e2), [STRING()]) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #str-eq(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  evalTypedExp(Eq(e1, e2), [_]) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #term-eq(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
   
-  evalExp(Neq(e1, e2)) = {
+  evalExp(e@Neq(e1, e2)) = evalTypedExp(e, type(e1))
+  evalTypedExp(Neq(e1, e2), [INT()]) = {
     v1 <- evalExp(e1)
     v2 <- evalExp(e2)
     if #int-neq(v1, v2) then {
@@ -177,8 +201,27 @@ rules
       cont@([$false])
     }
   } label cont/1:
+  evalTypedExp(Neq(e1, e2), [STRING()]) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #str-neq(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  evalTypedExp(Neq(e1, e2), [_]) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    if #term-eq(v1, v2) then {
+      cont@([$false])
+    } else {
+      cont@([$true])
+    }
+  } label cont/1:
   
-  evalExp(Gt(e1, e2)) = {
+  evalExp(e@Gt(e1, e2)) = evalTypedExp(e, type(e1))
+  evalTypedExp(Gt(e1, e2), [INT()]) = {
     v1 <- evalExp(e1)
     v2 <- evalExp(e2)
     if #int-gt(v1, v2) then {
@@ -187,8 +230,19 @@ rules
       cont@([$false])
     }
   } label cont/1:
+  evalTypedExp(Gt(e1, e2), [STRING()]) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    cmp <- #str-cmp(v1, v2)
+    if #int-gt(cmp, int('0)) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
   
-  evalExp(Lt(e1, e2)) = {
+  evalExp(e@Lt(e1, e2)) = evalTypedExp(e, type(e1))
+  evalTypedExp(Lt(e1, e2), [INT()]) = {
     v1 <- evalExp(e1)
     v2 <- evalExp(e2)
     if #int-lt(v1, v2) then {
@@ -197,8 +251,19 @@ rules
       cont@([$false])
     }
   } label cont/1:
+  evalTypedExp(Lt(e1, e2), [STRING()]) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    cmp <- #str-cmp(v1, v2)
+    if #int-lt(cmp, int('0)) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
   
-  evalExp(Geq(e1, e2)) = {
+  evalExp(e@Geq(e1, e2)) = evalTypedExp(e, type(e1))
+  evalTypedExp(Geq(e1, e2), [INT()]) = {
     v1 <- evalExp(e1)
     v2 <- evalExp(e2)
     if #int-geq(v1, v2) then {
@@ -207,11 +272,32 @@ rules
       cont@([$false])
     }
   } label cont/1:
+  evalTypedExp(Geq(e1, e2), [STRING()]) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    cmp <- #str-cmp(v1, v2)
+    if #int-geq(cmp, int('0)) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
   
-  evalExp(Leq(e1, e2)) = {
+  evalExp(e@Leq(e1, e2)) = evalTypedExp(e, type(e1))
+  evalTypedExp(Leq(e1, e2), [INT()]) = {
     v1 <- evalExp(e1)
     v2 <- evalExp(e2)
     if #int-leq(v1, v2) then {
+      cont@([$true])
+    } else {
+      cont@([$false])
+    }
+  } label cont/1:
+  evalTypedExp(Leq(e1, e2), [STRING()]) = {
+    v1 <- evalExp(e1)
+    v2 <- evalExp(e2)
+    cmp <- #str-cmp(v1, v2)
+    if #int-leq(cmp, int('0)) then {
       cont@([$true])
     } else {
       cont@([$false])

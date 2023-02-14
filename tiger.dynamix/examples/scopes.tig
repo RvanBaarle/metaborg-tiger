@@ -1,0 +1,13 @@
+let
+  type cat = {owner : string, age : int}
+  type house = {owner : string, cat : cat}
+  var my_house := house {owner = "me", cat = nil}
+  var stray_cat := cat {owner = "nobody", age = 1}
+in
+  my_house.cat := cat {owner = my_house.owner, age = 9000};
+  print(my_house.cat.owner);
+  print("\n");
+  my_house.cat := stray_cat;
+  print(my_house.cat.owner);
+  print("\n")
+end

@@ -28,6 +28,7 @@ primitives
   value #str-add(@cval, @cval)
   value #str-index(@cval, @cval)
   value #str-length(@cval)
+  value #str-cmp(@cval, @cval)
    
   value #record-new(List(@cval))
   value #record-read(@cval, @cval)

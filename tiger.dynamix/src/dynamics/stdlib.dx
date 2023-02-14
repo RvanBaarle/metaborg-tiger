@@ -42,8 +42,24 @@ rules
         res <- #str-length(arg1)
         cont@([res])
       }
-      fun substring([arg1, arg2, arg3, cont]) = 
-        cont@([arg1])  // TODO: STUB
+      fun substring([arg1, arg2, arg3, cont]) = {
+        loop <- fresh-var(loop)
+        curval <- fresh-var(curval)
+        i <- fresh-var(i)
+        end <- #int-add(arg2, arg3)
+        fix {
+          fun loop([curval, i]) = {
+            if #int-lt(i, end) then {
+              c <- #str-index(arg1, i)
+              newval <- #str-add(curval, c)
+              newi <- #int-add(i, int('1))
+              loop@([newval, newi])
+            } else
+              cont@([curval])
+          }
+        }
+        loop@([str('""), arg2])
+      }
 
       fun concat([arg1, arg2, cont]) = {
         res <- #str-add(arg1, arg2)
@@ -65,11 +81,11 @@ rules
         cont@([$unit])
       }
       fun timeGo([cont]) = {
-        #print(str('"Time start"))
+        #print(str('"Time start\n"))
         cont@([$unit])
       }
       fun timeStop([cont]) = {
-        #print(str('"Time stop"))
+        #print(str('"Time stop\n"))
         cont@([$unit])
       }
     }
